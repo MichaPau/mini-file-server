@@ -1,0 +1,22 @@
+{# {% extends "base" %} #}
+{% block content %}
+{% for item in data %}
+    
+    
+    <div class="file-item" id="item-{{ loop.index }}">
+    <div id="delete_{{ loop.index }}"></div>
+        <div hx-delete="/delete{{item.file_path}}" class="delete-button" hx-target="#item-{{ loop.index }}" hx-confirm="Delete {{item.file_path}} ?">X</div>
+        {% if item.is_folder%}
+            <a href="{{ item.url_path}}" >
+        {% else %}
+            <a href="{{ item.url_path }}" download="{{ item.name }}">
+        {% endif %}
+        <img class="file-icon" src="{{ item.icon_path }}"/>
+        </a>
+        <div class="file-name">{{ item.name}}</div>
+    </div>
+    
+
+{% endfor %}
+{% endblock content%}
+{# hx-target="#file-container" hx-push-url="true" #}

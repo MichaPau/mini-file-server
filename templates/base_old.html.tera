@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Tera Demo - {{ title }}</title>
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <h1> {{ title }}</h1>
+    {% block content %}{% endblock content %}
+    <ul>
+    {% for item in data %}
+    <li>{{item.name}} - {{item.icon_path}}</li>
+    {% endfor %}
+    </ul>
+  </body>
+</html>
