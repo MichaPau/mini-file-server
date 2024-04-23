@@ -23,12 +23,6 @@
             </div>
             <div class="flex-spacer"></div>
             
-            {# <form method="post" action="/upload" enctype="multipart/form-data">
-                <label for="files">Select files:</label>
-                <input type="file" id="files" name="files[]" multiple>
-                <input type="hidden" id="folder" name="folder" value="{{ folder }}">
-                <input type="submit" value="upload">
-            </form> #}
         </div>
         <div id="upload-container">
             <form method="post" action="/upload" enctype="multipart/form-data" autocomplete="off">
@@ -37,6 +31,13 @@
                 <input type="hidden" id="folder" name="folder" value="{{ folder }}">
                 <input type="submit" value="upload">
             </form>
+        </div>
+        <div id="create-folder-container">
+        <form method="post" hx-post="/create_dir" hx-target="#file-container" autocomplete="off">
+            <input type="text" id="name" name="name">
+            <input type="hidden" id="path" name="path" value="{{ folder }}">
+            <input type="submit" value="Create dir">
+        </form>
         </div>
         <div id="file-container">
         {% include "folder_result" %}

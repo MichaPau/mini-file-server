@@ -1,6 +1,6 @@
 #[macro_use] extern crate rocket;
 
-use std::io;
+//use std::io;
 use std::path::{Path, PathBuf};
 
 use rocket::form::Form;
@@ -15,7 +15,7 @@ use rocket::fs::{FileServer, NamedFile};
 use rocket::serde::json::{serde_json, Value};
 //use rocket_dyn_templates::Template;
 use rocket_dyn_templates::{Template, context};
-use utils::get_files;
+use utils::{get_files, Folder};
 use utils::create_breadcrump_items;
 use utils::make_file_name;
 use utils::Upload;
@@ -80,13 +80,10 @@ async fn file_content(file_path: PathBuf) -> Option<DownloadFile> {
 #[put("/data/<file_path..>")]
 fn get_folder_items(app_state: &State<AppState>, file_path: PathBuf) -> Template {
     println!("got put request:{:?}", file_path);
-    //format!("put request {}", file_path);
+   
     match get_files(app_state, &file_path) {
         Ok(data) => {
-            Template::render("base", context! {
-                title: "Mini File Server",
-                paths: vec!["/"],
-                folder: file_path,
+            Template::render("folder_result", context! {
                 data,
             })
         
@@ -103,14 +100,21 @@ fn get_folder_items(app_state: &State<AppState>, file_path: PathBuf) -> Template
 async fn delete_item(file_path: PathBuf) -> String {
     
     let mut path = PathBuf::from("./static/data/");
-    path.push(file_path);
+    path.push(&file_path);
     println!("delete item: {:?}", path);
-    match fs::remove_file(path).await {
-        Ok(()) => String::from("Item deleted"),
-        Err(e) => format!("Error: {:?}", e),
+    if path.is_dir() {
+        match fs::remove_dir_all(&path).await {
+            Ok(()) => format!("Folder {:?} deleted", file_path),
+            Err(e) => format!("Error: {:?}", e),
+        }
+    } else {
+        match fs::remove_file(&path).await {
+            Ok(()) => format!("Item {:?} deleted", file_path),
+            Err(e) => format!("Error: {:?}", e),
+        }
     }
-    //Ok(uri!("/data").to_string())
-   
+    
+    
 }
 
 #[get("/data/<file_path..>")]
@@ -135,6 +139,22 @@ fn get_folder_items_page(app_state: &State<AppState>, file_path: PathBuf) -> Tem
         },
     }
     
+}
+
+#[post("/create_dir", data = "<new_folder>")]
+async fn create_dir(app_state: &State<AppState>, new_folder: Form<Folder>) -> Result<Template, String> {
+    let mut dir_path = PathBuf::from("./static/data/");
+    dir_path.push(&new_folder.path);
+    dir_path.push(&new_folder.name);
+    println!("create new folder in: {:?}", dir_path);
+
+    match std::fs::create_dir(dir_path) {
+        Ok(()) => {
+           Ok(get_folder_items(&app_state, PathBuf::from(&new_folder.path)))
+        },
+        Err(e) => Err(format!("Error: {}", e))
+    }
+
 }
 #[post("/upload", data = "<upload>")]
 async fn upload_post(upload: Form<Upload<'_>>) -> Redirect {
@@ -167,7 +187,7 @@ async fn upload_post(upload: Form<Upload<'_>>) -> Redirect {
    
     //let p :PathBuf = [std::path::MAIN_SEPARATOR_STR, "data", &folder].iter().collect();
     let p :PathBuf = PathBuf::from(&folder);
-    let uri = uri!(get_folder_items(p)).to_string();
+    let uri = uri!(get_folder_items_page(p)).to_string();
     // let mut temp = String::from("/data");
     // temp.push_str(&folder);
     // let uri = Reference::parse(temp.as_str()).unwrap();
@@ -185,7 +205,7 @@ async fn main() -> Result<(), rocket::Error> {
    
     let _rocket = rocket::build()
         .manage(AppState::default())
-        .mount("/", routes![index, get_folder_items, file_content, get_folder_items_page, upload_post, delete_item])
+        .mount("/", routes![index, get_folder_items, file_content, get_folder_items_page, upload_post, delete_item, create_dir])
         .mount("/scripts", FileServer::from("./static/scripts"))
         .mount("/styles", FileServer::from("./static/css"))
         .mount("/assets", FileServer::from("./static/assets"))

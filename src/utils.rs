@@ -26,6 +26,12 @@ pub struct Upload<'r> {
     pub files: Vec<TempFile<'r>>,
     pub folder: String,
 }
+
+#[derive(FromForm)]
+pub struct Folder {
+    pub name: String,
+    pub path: String,
+}
 pub fn create_breadcrump_items(p: &PathBuf) -> Vec<String> {
     
     let mut v:Vec<_> = p.ancestors()
@@ -132,4 +138,14 @@ pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<Fi
         }).collect();
 
         Ok(paths_vec)
+}
+
+#[test]
+fn test_dir() {
+    let dir:PathBuf = PathBuf::from("./static/data/");
+    let root_dir:Vec<_> = fs::read_dir(&dir).unwrap().filter_map(Result::ok).filter(|item| !item.file_name().to_str().unwrap().starts_with('.')).collect();
+
+    for item in root_dir {
+        println!("{:?}", item);
+    }
 }
