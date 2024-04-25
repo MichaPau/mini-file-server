@@ -8,6 +8,8 @@
     <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
     <link rel='stylesheet' type='text/css' media='screen' href='/styles/styles.css'>
     <script src='/scripts/htmx.min.js'></script>
+    <script src='/scripts/fetch_funcs.js'></script>
+</head>
 </head>
 <body>
     <div id="container">
@@ -22,7 +24,6 @@
                 {% endfor %}
             </div>
             <div class="flex-spacer"></div>
-            
         </div>
         <div id="upload-container">
             <form method="post" action="/upload" enctype="multipart/form-data" autocomplete="off">
@@ -38,6 +39,10 @@
             <input type="hidden" id="path" name="path" value="{{ folder }}">
             <input type="submit" value="Create dir">
         </form>
+        </div>
+        <div id="feedback-container" onclick="this.classList.toggle('show')">
+            <div id="info">the info container</div>
+
         </div>
         <div id="file-container">
         {% include "folder_result" %}

@@ -5,7 +5,8 @@
     
     <div class="file-item" id="item-{{ loop.index }}">
     <div id="delete_{{ loop.index }}"></div>
-        <div hx-delete="/delete{{item.file_path}}" class="delete-button" hx-target="#item-{{ loop.index }}" hx-confirm="Delete {{item.file_path}} ?">X</div>
+        <!-- <div hx-delete="/delete{{item.file_path}}" class="delete-button" hx-target="#item-{{ loop.index }}" hx-confirm="Delete {{item.file_path}} ?">X</div> -->
+        <div onclick="delete_item('/delete{{item.file_path}}', 'item-{{ loop.index }}')" class="delete-button">X</div>
         {% if item.is_folder%}
             <a href="{{ item.url_path}}" >
         {% else %}
