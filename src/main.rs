@@ -10,12 +10,14 @@ use rocket::response::{self, Redirect, Responder};
 use rocket::tokio::fs;
 use rocket::{Request, Response, State};
 use rocket::fs::{FileServer, NamedFile};
+use rocket::config::Config;
 //use rocket::fs::relative;
 //use rocket::serde::Serialize;
 use rocket::serde::json::{serde_json, Value};
+
 //use rocket_dyn_templates::Template;
 use rocket_dyn_templates::{Template, context};
-use utils::{get_files, Folder};
+use utils::{get_files, Folder, TestError};
 use utils::create_breadcrump_items;
 use utils::make_file_name;
 use utils::Upload;
@@ -23,6 +25,7 @@ use utils::Upload;
 
 mod utils;
 struct AppState {
+    
     icon_set: String,
     available_icons: Vec<String>,
 }
@@ -51,8 +54,36 @@ impl<'r> Responder<'r, 'static> for DownloadFile {
     }
 }
 
+#[get("/test")]
+fn test() -> Result<String, TestError> {
+    println!("Test route..");
+    //Ok("This is the test result".into())
+    Err(TestError::GeneralError("Error string".to_string()))
+}
+#[delete("/delete/data/<file_path..>")]
+async fn delete_item(file_path: PathBuf) -> Result<String, TestError> {
+    
+    let mut path = PathBuf::from("./static/data/");
+    path.push(&file_path);
+   
+    if path.is_dir() {
+        match fs::remove_dir_all(&path).await {
+            Ok(()) => Ok(format!("Folder {:?} deleted", file_path)),
+            Err(e) => Err(TestError::GeneralError(format!("Error: {:?}", e))),
+        }
+    } else {
+        match fs::remove_file(&path).await {
+            Ok(()) => Ok(format!("Item {:?} deleted", file_path)),
+            Err(e) => Err(TestError::GeneralError(format!("Error: {:?}", e))),
+        }
+    }
+    
+    
+}
+
 #[get("/")]
 fn index(app_state: &State<AppState>) -> Template {
+    println!("in index route");
     match get_files(app_state, &PathBuf::new()) {
         Ok(data) => {
             Template::render("base", context! {
@@ -96,26 +127,7 @@ fn get_folder_items(app_state: &State<AppState>, file_path: PathBuf) -> Template
     }
     
 }
-#[delete("/delete/data/<file_path..>")]
-async fn delete_item(file_path: PathBuf) -> String {
-    
-    let mut path = PathBuf::from("./static/data/");
-    path.push(&file_path);
-    println!("delete item: {:?}", path);
-    if path.is_dir() {
-        match fs::remove_dir_all(&path).await {
-            Ok(()) => format!("Folder {:?} deleted", file_path),
-            Err(e) => format!("Error: {:?}", e),
-        }
-    } else {
-        match fs::remove_file(&path).await {
-            Ok(()) => format!("Item {:?} deleted", file_path),
-            Err(e) => format!("Error: {:?}", e),
-        }
-    }
-    
-    
-}
+
 
 #[get("/data/<file_path..>")]
 fn get_folder_items_page(app_state: &State<AppState>, file_path: PathBuf) -> Template {
@@ -203,9 +215,13 @@ fn default_catcher(status: Status, request: &Request) -> String {
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
    
+    // let host: String = Config::figment().extract_inner("address").unwrap();
+    // let port: u32 = Config::figment().extract_inner("port").unwrap();
+    // let base_url = format!("http://{}:{}", host, port);
+    // println!("{:?}", base_url);
     let _rocket = rocket::build()
         .manage(AppState::default())
-        .mount("/", routes![index, get_folder_items, file_content, get_folder_items_page, upload_post, delete_item, create_dir])
+        .mount("/", routes![test, index, get_folder_items, file_content, get_folder_items_page, upload_post, delete_item, create_dir])
         .mount("/scripts", FileServer::from("./static/scripts"))
         .mount("/styles", FileServer::from("./static/css"))
         .mount("/assets", FileServer::from("./static/assets"))

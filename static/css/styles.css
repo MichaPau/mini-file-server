@@ -48,7 +48,7 @@ a {
     align-items: center;
     border: 1px solid black;
 }
-#upload-container, #create-folder-container {
+#upload-container, #create-folder-container, #feedback-container {
     width: 90%;
     margin: 0.25em;
     padding: 0.25em;
@@ -57,6 +57,22 @@ a {
     align-items: center;
     justify-content: center;
 
+}
+
+#feedback-container {
+    height: 0;
+    visibility: hidden;
+    cursor: pointer;
+}
+#feedback-container.show {
+    height: 1.5em;
+    visibility: visible;
+}
+
+#info-close-btn {
+    padding: 0.1em;
+    border: 1px solid black;
+    cursor: pointer;
 }
 form {
     display: flex;

@@ -1,14 +1,25 @@
 use std::fs;
 use std::path::PathBuf;
 
+use path_slash::PathBufExt;
 use rocket::fs::FileName;
 use rocket::fs::TempFile;
+//use rocket::response;
 use rocket::serde::Serialize;
 use crate::AppState;
 
-type GenericError = Box<dyn std::error::Error + Send + Sync + 
+use path_slash::PathBufExt as _;
+use path_slash::PathExt as _;
+
+#[derive(Responder)]
+pub enum TestError {
+    #[response(status = 500)]
+    GeneralError(String)
+}
+
+pub type GenericError = Box<dyn std::error::Error + Send + Sync + 
 'static>;
-type GenericResult<T> = Result<T, GenericError>;
+pub type GenericResult<T> = Result<T, GenericError>;
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -35,17 +46,20 @@ pub struct Folder {
 pub fn create_breadcrump_items(p: &PathBuf) -> Vec<String> {
     
     let mut v:Vec<_> = p.ancestors()
-        .map(|item| { item.to_string_lossy().to_string() }).collect();
+        .map(|item| { 
+            //item.to_string_lossy().to_string()
+            item.to_slash().unwrap().to_string()
+        }).collect();
     v.reverse();
     let crump_items: Vec<_> = v.iter().enumerate().map(|(i, item)| {
         
         if i == 0 {
             format!("<a class=\"breadcrump-item\" href=\"/\">/</a>")
         } else if i == v.len() - 1 {
-            let last = item.split(std::path::MAIN_SEPARATOR_STR).last().unwrap_or("unknwon");
+            let last = item.split('/').last().unwrap_or("unknwon");
             format!("<a class=\"breadcrump-item-active\" href=\"#\">{}</a>", last)
         } else {
-            let last = item.split(std::path::MAIN_SEPARATOR_STR).last().unwrap_or("unknwon");
+            let last = item.split('/').last().unwrap_or("unknwon");
             format!("<a class=\"breadcrump-item\" href=\"/data/{item}\">{}</a>", last)
         }
         
@@ -76,8 +90,9 @@ pub fn make_file_name(option_name: Option<&FileName>) -> GenericResult<String> {
 }
 
 pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<FileItem>> {
-    let mut dir:PathBuf = PathBuf::from("./static/data/");
-    dir.push(&folder);
+    let mut dir_path:PathBuf = PathBuf::from("./static/data/");
+    dir_path.push(&folder);
+    let dir = dir_path.to_slash().unwrap().to_string();
     let root_dir = fs::read_dir(&dir)?;
     let paths_vec:Vec<FileItem> = root_dir.filter_map(Result::ok).map(|item| {
            //let mut icon_path_prefix:PathBuf = PathBuf::from("/assets/icons/");
@@ -113,11 +128,11 @@ pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<Fi
             // file_path.push("data");
             url_path.push(&folder);
             url_path.push(item.file_name());
-            let file_path = format!("{}", url_path.display());
+            let file_path = url_path.to_slash().unwrap().to_string();
             if !is_folder {
                 url_path.push("?download");
             }
-            let path_str = format!("{}", url_path.display());
+            let path_str = url_path.to_slash().unwrap().to_string();
             
             // let mut file_path = String::from("/data");
             // file_path.push_str(&folder);
@@ -128,7 +143,7 @@ pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<Fi
 
             FileItem {
                 name: p.to_string_lossy().to_string(),
-                icon_path: String::from(icon_path_prefix.to_str().unwrap()),
+                icon_path: icon_path_prefix.to_slash().unwrap().to_string(),
                 is_folder,
                 url_path: path_str,
                 file_path
@@ -141,6 +156,7 @@ pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<Fi
 }
 
 #[test]
+#[ignore]
 fn test_dir() {
     let dir:PathBuf = PathBuf::from("./static/data/");
     let root_dir:Vec<_> = fs::read_dir(&dir).unwrap().filter_map(Result::ok).filter(|item| !item.file_name().to_str().unwrap().starts_with('.')).collect();
@@ -148,4 +164,17 @@ fn test_dir() {
     for item in root_dir {
         println!("{:?}", item);
     }
+}
+
+#[test]
+fn test_path_slash() {
+    let mut p = PathBuf::from("./data/folder");
+    p.push("other");
+    p.push("file.txt");
+    println!("{:?}", p);
+
+    let p2 = p.to_slash().unwrap();
+    println!("{:?}", p2);
+
+
 }
