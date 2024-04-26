@@ -14,7 +14,19 @@ body {
     font-family: 'Courier New', Courier, monospace;
     font-family: monospace;
     height: 100vh;
+    font-size: 1.0em;
     
+}
+
+@media (width < 600px) {
+    body {
+        font-size: 0.8em;
+    }  
+}
+@media (width < 350px) {
+    body {
+        font-size: 0.6em;
+    }  
 }
 
 #container {
@@ -28,7 +40,7 @@ body {
     flex-direction: column;
     justify-content: start;
     align-items: center;
-    font-size: 0.8em;
+    
 }
 h1 {
     color: #07243F;
@@ -86,7 +98,7 @@ input {
 }
 
 
-input[type="file"], input[type="submit"], input::file-selector-button  {
+input[type="file"], input[type="submit"], input[type="button"], input::file-selector-button  {
     font-family: monospace;
     font-size: 1.0em;
 }

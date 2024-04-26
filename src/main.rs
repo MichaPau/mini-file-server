@@ -6,18 +6,18 @@ use std::path::{Path, PathBuf};
 use rocket::form::Form;
 
 use rocket::http::Status;
-use rocket::response::{self, Redirect, Responder};
+use rocket::response::{self, Responder};
 use rocket::tokio::fs;
 use rocket::{Request, Response, State};
 use rocket::fs::{FileServer, NamedFile};
-use rocket::config::Config;
+//use rocket::config::Config;
 //use rocket::fs::relative;
 //use rocket::serde::Serialize;
 use rocket::serde::json::{serde_json, Value};
 
 //use rocket_dyn_templates::Template;
 use rocket_dyn_templates::{Template, context};
-use utils::{get_files, Folder, TestError};
+use utils::{get_files, Folder, ServerError};
 use utils::create_breadcrump_items;
 use utils::make_file_name;
 use utils::Upload;
@@ -55,31 +55,12 @@ impl<'r> Responder<'r, 'static> for DownloadFile {
 }
 
 #[get("/test")]
-fn test() -> Result<String, TestError> {
+fn test() -> Result<String, ServerError> {
     println!("Test route..");
     //Ok("This is the test result".into())
-    Err(TestError::GeneralError("Error string".to_string()))
+    Err(ServerError::GeneralError("Error string".to_string()))
 }
-#[delete("/delete/data/<file_path..>")]
-async fn delete_item(file_path: PathBuf) -> Result<String, TestError> {
-    
-    let mut path = PathBuf::from("./static/data/");
-    path.push(&file_path);
-   
-    if path.is_dir() {
-        match fs::remove_dir_all(&path).await {
-            Ok(()) => Ok(format!("Folder {:?} deleted", file_path)),
-            Err(e) => Err(TestError::GeneralError(format!("Error: {:?}", e))),
-        }
-    } else {
-        match fs::remove_file(&path).await {
-            Ok(()) => Ok(format!("Item {:?} deleted", file_path)),
-            Err(e) => Err(TestError::GeneralError(format!("Error: {:?}", e))),
-        }
-    }
-    
-    
-}
+
 
 #[get("/")]
 fn index(app_state: &State<AppState>) -> Template {
@@ -154,9 +135,16 @@ fn get_folder_items_page(app_state: &State<AppState>, file_path: PathBuf) -> Tem
 }
 
 #[post("/create_dir", data = "<new_folder>")]
-async fn create_dir(app_state: &State<AppState>, new_folder: Form<Folder>) -> Result<Template, String> {
+async fn create_dir(app_state: &State<AppState>, new_folder: Form<Folder>) -> Result<Template, ServerError> {
+    if !new_folder.name.chars().all(|x| x.is_alphanumeric() || x == '_') {
+        return Err(ServerError::GeneralError(format!("name is not valid: {}", &new_folder.name)));
+    }
     let mut dir_path = PathBuf::from("./static/data/");
     dir_path.push(&new_folder.path);
+
+    if !dir_path.exists() {
+        return Err(ServerError::GeneralError(format!("path is not valid: {}", &new_folder.path)));
+    }
     dir_path.push(&new_folder.name);
     println!("create new folder in: {:?}", dir_path);
 
@@ -164,17 +152,22 @@ async fn create_dir(app_state: &State<AppState>, new_folder: Form<Folder>) -> Re
         Ok(()) => {
            Ok(get_folder_items(&app_state, PathBuf::from(&new_folder.path)))
         },
-        Err(e) => Err(format!("Error: {}", e))
+        Err(e) => Err(ServerError::GeneralError(format!("Error: {}", e)))
     }
 
 }
 #[post("/upload", data = "<upload>")]
-async fn upload_post(upload: Form<Upload<'_>>) -> Redirect {
+async fn upload_post(app_state: &State<AppState>, upload: Form<Upload<'_>>) -> Result<Template, ServerError> {
     
     let mut path = PathBuf::from("./static/data/");
     let folder = String::from(&upload.folder);
     println!("upload post: {}", folder);
     path.push(String::from(&upload.folder));
+
+    if !path.exists() {
+        return Err(ServerError::GeneralError(format!("path is not valid: {:?}", path)));
+    }
+
     let mut files = upload.into_inner().files;
     
     let mut upload_result: Vec<String> = vec![];
@@ -185,10 +178,14 @@ async fn upload_post(upload: Form<Upload<'_>>) -> Redirect {
             file_path.push(&file_name);
             // file_path.push(file.name().unwrap());
             println!("try to store file in path: {:?}", file_path);
-            match file.persist_to(&file_path).await {
-                Ok(()) => upload_result.push(format!("{} saved.", &file_name)),
-                Err(e) => upload_result.push(format!("Error saving {} [{}]", file_name, e)),
+            if !file_path.exists() {
+                match file.persist_to(&file_path).await {
+                    Ok(()) => upload_result.push(format!("{} saved.", &file_name)),
+                    Err(e) => upload_result.push(format!("Error saving {} [{}]", file_name, e)),
 
+                }
+            } else {
+                upload_result.push(format!("File name exists in folder {}", file_name));
             }
         } else {
             upload_result.push(format!("File name error with: {:?}", file.raw_name()));
@@ -199,15 +196,30 @@ async fn upload_post(upload: Form<Upload<'_>>) -> Redirect {
    
     //let p :PathBuf = [std::path::MAIN_SEPARATOR_STR, "data", &folder].iter().collect();
     let p :PathBuf = PathBuf::from(&folder);
-    let uri = uri!(get_folder_items_page(p)).to_string();
-    // let mut temp = String::from("/data");
-    // temp.push_str(&folder);
-    // let uri = Reference::parse(temp.as_str()).unwrap();
-    
-    println!("uri: {}", uri);
-    println!("try to redirect");
-    Redirect::to(uri)
+    Ok(get_folder_items(&app_state, p))
+    // let uri = uri!(get_folder_items_page(p)).to_string();
+    // Redirect::to(uri)
 }
+
+#[delete("/delete/data/<file_path..>")]
+async fn delete_item(file_path: PathBuf) -> Result<String, ServerError> {
+    
+    let mut path = PathBuf::from("./static/data/");
+    path.push(&file_path);
+   
+    if path.is_dir() {
+        match fs::remove_dir_all(&path).await {
+            Ok(()) => Ok(format!("Folder {:?} deleted", file_path)),
+            Err(e) => Err(ServerError::GeneralError(format!("Error: {:?}", e))),
+        }
+    } else {
+        match fs::remove_file(&path).await {
+            Ok(()) => Ok(format!("Item {:?} deleted", file_path)),
+            Err(e) => Err(ServerError::GeneralError(format!("Error: {:?}", e))),
+        }
+    }
+}
+
 #[catch(default)]
 fn default_catcher(status: Status, request: &Request) -> String {
     format!("Status: {}; Sorry, '{}' is not a valid path.", status.to_string(), request.uri())

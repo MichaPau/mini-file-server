@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+
 use path_slash::PathBufExt;
 use rocket::fs::FileName;
 use rocket::fs::TempFile;
@@ -8,11 +9,11 @@ use rocket::fs::TempFile;
 use rocket::serde::Serialize;
 use crate::AppState;
 
-use path_slash::PathBufExt as _;
+//use path_slash::PathBufExt as _;
 use path_slash::PathExt as _;
 
 #[derive(Responder)]
-pub enum TestError {
+pub enum ServerError {
     #[response(status = 500)]
     GeneralError(String)
 }
@@ -94,8 +95,10 @@ pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<Fi
     dir_path.push(&folder);
     let dir = dir_path.to_slash().unwrap().to_string();
     let root_dir = fs::read_dir(&dir)?;
-    let paths_vec:Vec<FileItem> = root_dir.filter_map(Result::ok).map(|item| {
-           //let mut icon_path_prefix:PathBuf = PathBuf::from("/assets/icons/");
+    let paths_vec:Vec<FileItem> = root_dir.filter_map(Result::ok)
+        .filter(|item| item.path().extension().is_some() || item.path().is_dir())
+        .map(|item| {
+           
             let mut icon_path_prefix: PathBuf = [std::path::MAIN_SEPARATOR_STR, "assets", "icons"].iter().collect();
             let set_path = format!("{}", &app_state.icon_set);
             icon_path_prefix.push(set_path);
@@ -117,15 +120,13 @@ pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<Fi
                 icon_path_prefix.push("folder.svg");
             }
            
-            let p = item.file_name();
-            //let name = p.clone().into_string().unwrap();
-            let mut path:PathBuf = PathBuf::new();
-            path.push(&dir);
-            path.push(&p);
+            let name = item.file_name().to_string_lossy().to_string();
+            // let mut path:PathBuf = PathBuf::new();
+            // path.push(&dir);
+            // path.push(&p);
             
             let mut url_path: PathBuf = [std::path::MAIN_SEPARATOR_STR, "data"].iter().collect();
-            // let mut file_path = PathBuf::from("data");
-            // file_path.push("data");
+           
             url_path.push(&folder);
             url_path.push(item.file_name());
             let file_path = url_path.to_slash().unwrap().to_string();
@@ -134,15 +135,10 @@ pub fn get_files(app_state: &AppState, folder: &PathBuf) -> GenericResult<Vec<Fi
             }
             let path_str = url_path.to_slash().unwrap().to_string();
             
-            // let mut file_path = String::from("/data");
-            // file_path.push_str(&folder);
-            // file_path.push_str(item.file_name());
-            // if is_folder {
-            //     file_path.push_str("?is_folder=true");
-            // }
+           
 
             FileItem {
-                name: p.to_string_lossy().to_string(),
+                name,
                 icon_path: icon_path_prefix.to_slash().unwrap().to_string(),
                 is_folder,
                 url_path: path_str,
@@ -167,6 +163,7 @@ fn test_dir() {
 }
 
 #[test]
+#[ignore]
 fn test_path_slash() {
     let mut p = PathBuf::from("./data/folder");
     p.push("other");
@@ -177,4 +174,20 @@ fn test_path_slash() {
     println!("{:?}", p2);
 
 
+}
+
+#[test]
+fn test_something() {
+
+    let p = PathBuf::from("../some/file/t.txt");
+    let c = fs::canonicalize(&p).unwrap();
+    println!("{:?}", p);
+    println!("{:?}", c);
+    // let d = fs::read_dir("./static/data/").unwrap();
+    // let _files: Vec<_> = d.filter_map(Result::ok)
+    //     .filter(|item| item.path().extension().is_some())
+    //     .inspect(|item| {
+    //         println!("{:?}", item.file_name());
+    //     })
+    //    .collect();
 }

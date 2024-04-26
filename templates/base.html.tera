@@ -26,18 +26,19 @@
             <div class="flex-spacer"></div>
         </div>
         <div id="upload-container">
-            <form method="post" action="/upload" enctype="multipart/form-data" autocomplete="off">
+            <!--<form id="upload_form" method="post" action="/upload" hx-post="/upload" hx-target="#file-container" enctype="multipart/form-data" autocomplete="off">-->
+            <form id="upload_form" onsubmit="return false" enctype="multipart/form-data" autocomplete="off">
                 <label for="files">Upload:</label>
-                <input type="file" id="files" name="files[]"  multiple>
+                <input type="file" id="files" name="files[]" multiple>
                 <input type="hidden" id="folder" name="folder" value="{{ folder }}">
-                <input type="submit" value="upload">
+                <input type="button" onclick="upload()" value="upload">
             </form>
         </div>
         <div id="create-folder-container">
-        <form method="post" hx-post="/create_dir" hx-target="#file-container" autocomplete="off">
+        <form id="create_folder_form" onsubmit="return false" autocomplete="off">
             <input type="text" id="name" name="name">
             <input type="hidden" id="path" name="path" value="{{ folder }}">
-            <input type="submit" value="Create dir">
+            <input type="button" onclick="create_folder()" value="Create dir">
         </form>
         </div>
         <div id="feedback-container" onclick="this.classList.toggle('show')">
